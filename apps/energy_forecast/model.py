@@ -993,6 +993,7 @@ class EnergyForecastModel:
         heating_active_series: pd.Series | None = None,
         setpoint_on: float | None = None,
         setpoint_off: float | None = None,
+        heating_buffer_temp_recent: pd.DataFrame | None = None,  # cols: timestamp, heating_buffer_temp
         _prepared: tuple | None = None,
     ) -> pd.DataFrame:
         """Return 48-hour DataFrame [timestamp (naive), predicted_kwh]."""
@@ -1045,6 +1046,7 @@ class EnergyForecastModel:
         heating_active_series: pd.Series | None = None,
         setpoint_on: float | None = None,
         setpoint_off: float | None = None,
+        heating_buffer_temp_recent: pd.DataFrame | None = None,  # cols: timestamp, heating_buffer_temp
         _prepared: tuple | None = None,
     ) -> pd.DataFrame | None:
         """Return 48-hour DataFrame [timestamp, low_kwh, high_kwh], or None.
@@ -1104,6 +1106,7 @@ class EnergyForecastModel:
         setpoint_on: float | None = None,
         setpoint_off: float | None = None,
         room_areas: dict[str, float] | None = None,
+        heating_buffer_temp_recent: pd.DataFrame | None = None,  # cols: timestamp, heating_buffer_temp
     ) -> pd.DataFrame:
         """Return composite 48h forecast [timestamp, predicted_kwh, delta_kwh].
 
@@ -1129,6 +1132,7 @@ class EnergyForecastModel:
             setpoint_on=setpoint_on,
             setpoint_off=setpoint_off,
             room_areas=room_areas,
+            heating_buffer_temp_recent=heating_buffer_temp_recent,
         )
         return _composite_forecast(baseline_df, schedule, self._appliance_signatures)
 
