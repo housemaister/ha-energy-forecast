@@ -83,7 +83,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sessions are correctly excluded from training rather than silently retained as normal
   household load.
 
+### Added
+- `scripts/backfill_compare_solaredge.py` — one-off analysis and apply tool (gitignored) used to
+  rebuild `data/energy_history.csv`'s post-cutover tail from SolarEdge's own cumulative energy
+  counters after switching away from gplugk. In `--dry-run` mode (default) it prints a side-by-side
+  kWh comparison between the two meter sources; with `--apply` it overwrites the post-cutover rows
+  in-place and prints a summary. Credentials via `EM_HA_TOKEN` env var; cutover boundary configurable
+  at the top of the file (`CUTOVER_DATE = "2026-07-25"`). Not run automatically by `deploy.py`.
+
 ### Fixed
+- `data/apps.yaml` (gitignored, deployed via Samba) — `energy_sensor` (ML training target) and
+  `grid_export_sensor` (rolling export correction input) switched from `sensor.gplugk_z_ei` /
+  `sensor.gplugk_z_ee` to `sensor.solaredge_i1_m1_ac_energy_imported` /
+  `sensor.solaredge_i1_m1_ac_energy_exported`. gplugk has been freezing valid-but-stale (the
+  "unavailable" watchdog does not catch frozen reads), most recently a live ~4 h+ data gap this
+  session. A full-window comparison (`scripts/backfill_compare_solaredge.py`) found the two meters
+  agree within ~1 %/~10 % (import/export) from 2026-07-25 onward. The first ~9 days
+  post-commissioning (2026-07-16 → 07-25) showed 400–600 % disagreement, root-caused to a
+  documented phase-C sign-flip and a lifetime-counter-reset event on gplugk around commissioning.
+  The cutover splits `energy_history.csv` at 2026-07-25: pre-cutover rows are kept gplugk-sourced
+  (the SolarEdge commissioning window is unreliable); the 2026-07-25-onward tail was rebuilt from
+  SolarEdge and re-uploaded to the live instance. `grid_export_sensor` is a lower-stakes correction
+  input (rolling ~30-day fetch, not a persisted backfill) — its switch is architecturally
+  independent of the training-target switch.
+
 - `ha_appdaemon_config.yaml`, `README.md` — Updated add-on Configuration for AppDaemon add-on **v0.19.0** (Alpine → Debian base image). On v0.19.0 the old config causes a fatal install error that prevents the add-on from starting: `system_packages` listed Alpine apk names (`build-base`, `g++`, `gfortran`, `openblas-dev`, `python3-dev`) that do not exist on Debian apt, and `init_commands` shelled out to `pip install` with the alpine-wheels mirror — `pip` is no longer on `PATH` in v0.19.0's uv-managed runtime. On Debian/glibc, PyPI's standard manylinux wheels install pandas, numpy, scikit-learn, and LightGBM without a compiler or third-party wheel index: all four move to `python_packages`. `system_packages` is reduced to `libgomp1` (Debian's OpenMP runtime, required by scikit-learn at import). `init_commands: []` is set explicitly — the add-on schema rejects the block if the key is missing entirely, even unused. armv7 fallback block (no prebuilt LightGBM wheel on PyPI) updated in parallel: drop `lightgbm` from `python_packages`, no build toolchain needed. README timing note updated: prebuilt wheels install well under a minute on v0.19.0, replacing the previous first-start 5–10 minute LightGBM source compile. A compatibility callout with a link to the pre-v0.19.0 instructions is added for users still on v0.18.x.
 - `apps/energy_forecast/requirements.txt` — Removed the dead `--extra-index-url https://alpine-wheels.github.io/index` line (Alpine/musl-specific, not applicable on Debian), dropped the `scikit-learn<=1.6.0` cap (was an Alpine wheel-mirror constraint, not a code requirement), and aligned the `lightgbm` pin to `>=4.7.0,<5.0` (was `>=4.0.0`). File header updated to clarify that the add-on does not read `requirements.txt` — declare packages via `python_packages` in the add-on Configuration tab.
 - `apps/energy_forecast/energy_forecast.py` — MQTT Discovery registrations for forecast, block, MAE, scenario, and physics sensors carried `device_class: energy` paired with `state_class: measurement`, which Home Assistant rejects at startup with a warning ("state class 'measurement' is impossible considering device class ('energy')") for every affected entity. Fixed by removing `device_class` from all sensors that publish forecasts or error metrics rather than meter readings: next_1h / next_3h / today / tomorrow totals, all eight 3 h block sensors for each day, the 32 lazily-registered P10/P90 interval sensors, `model_mae` / `mae_7d` / `mae_30d`, all scenario sensors, and — when `physics:` is configured — `physics_base_today` and `ml_adjustment_today`. The two EV actual sensors (`ev_today` / `ev_yesterday`) are genuine accumulators (detected charging kWh that reset at midnight), so they keep `device_class: energy` and move to `state_class: total` instead of losing the device class. Fixes #19.
