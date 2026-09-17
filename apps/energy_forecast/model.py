@@ -850,6 +850,7 @@ class EnergyForecastModel:
             future_df,
             _extended,
             outdoor_pred_df,
+            country=self._country,
             canton=self._canton,
             likely_ev_hours=self._likely_ev_hours,
             climate_dfs=climate_dfs_for_features,

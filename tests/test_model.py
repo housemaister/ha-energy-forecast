@@ -2612,6 +2612,34 @@ class TestHolidayCountry:
         for col in ("is_public_holiday", "days_to_next_holiday", "days_since_last_holiday"):
             assert col in result.columns
 
+    def test_prediction_uses_configured_holiday_country(self, tmp_path):
+        """_prepare_prediction_X must forward self._country (not the "CH" default) to
+        _engineer_features, matching what train() already does — regression test for the
+        bug where prediction silently used CH holidays regardless of configured country."""
+        model = EnergyForecastModel(tmp_path, timezone="Europe/Berlin")
+        model._country = "DE"
+        model._canton = "BY"
+
+        start = pd.Timestamp.now(tz="Europe/Berlin").tz_localize(None).floor("1h")
+        timestamps = pd.date_range(start, periods=48, freq="1h")
+        forecast = pd.DataFrame({"timestamp": timestamps, "temp_c": 0.0})
+        feature_frame = pd.DataFrame({"timestamp": timestamps})
+        for column in model.feature_cols:
+            feature_frame[column] = 0.0
+
+        with patch(
+            "energy_forecast.model._engineer_features",
+            return_value=feature_frame,
+        ) as engineer_features:
+            model._prepare_prediction_X(
+                forecast,
+                live_temp=None,
+                recent_actuals=None,
+            )
+
+        assert engineer_features.call_args.kwargs["country"] == "DE"
+        assert engineer_features.call_args.kwargs["canton"] == "BY"
+
 
 # ── Stage 3: Appliance Signature Discovery ────────────────────────────────────
 
