@@ -10,6 +10,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.13] - 2026-09-17
+
+### Fixed
+- `apps/energy_forecast/model.py` — `_prepare_prediction_X()` was calling `_engineer_features()` without `country=self._country`, so predictions silently used CH holidays regardless of the user's configured country/canton. Training (`train()`) already passed `country` correctly, making training and prediction inconsistent. Fixed by adding the missing `country=` argument. Regression test added to `TestHolidayCountry`. (Ported from GitHub PR #22 by @GreenNothing.)
+
+---
+
 ## [0.11.12] - 2026-08-30
 
 ### Added
