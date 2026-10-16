@@ -350,4 +350,9 @@ def fetch_open_meteo(lat: float, lon: float, timezone: str = "Europe/Zurich", pa
             }
         )
     except (requests.RequestException, KeyError, ValueError):
-        return pd.DataFrame(columns=_WEATHER_COLUMNS)
+        # Typed empty frame: a bare columns-only DataFrame has object dtype, which
+        # later makes np.exp()/np.maximum() fail in _engineer_features.
+        empty = pd.DataFrame(columns=_WEATHER_COLUMNS)
+        for col in _WEATHER_COLUMNS:
+            empty[col] = empty[col].astype("datetime64[ns]" if col == "timestamp" else "float64")
+        return empty
