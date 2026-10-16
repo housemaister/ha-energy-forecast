@@ -8,6 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `apps/energy_forecast/weather.py`, `apps/energy_forecast/model.py` — when the Open-Meteo forecast request failed (timeout, 5xx), `fetch_open_meteo()` returned `pd.DataFrame(columns=_WEATHER_COLUMNS)`, whose columns have `object` dtype. After the weather merge in `_engineer_features()` the NaN-only `temp_c` stayed `object`, so `np.exp()` in the defrost-risk feature raised `loop of ufunc does not support argument 0 of type float which has no callable exp method` and the whole sensor update failed (`ERROR energy_forecast: Sensor update failed`), accompanied by `RuntimeWarning: invalid value encountered in maximum`. The failure fallback now returns float64/datetime64 columns, and `_engineer_features()` coerces all weather columns with `pd.to_numeric(errors="coerce")` so the existing median/NaN imputation applies instead of an exception.
+
 ---
 
 ## [0.11.15] - 2026-10-06

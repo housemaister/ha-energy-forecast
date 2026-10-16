@@ -90,6 +90,16 @@ class TestFetchOpenMeteo:
             df = weather.fetch_open_meteo(47.0, 8.0)
         assert df.empty
 
+    def test_network_error_returns_float_dtypes(self):
+        """The failure fallback must be numeric, not object dtype (np.exp fails on object)."""
+        import requests as req
+
+        with patch("requests.get", side_effect=req.RequestException("timeout")):
+            df = weather.fetch_open_meteo(47.0, 8.0)
+        for col in weather._WEATHER_COLUMNS:
+            if col != "timestamp":
+                assert df[col].dtype == "float64", col
+
     def test_network_error_returns_correct_columns(self):
         """On failure, returned DataFrame must have all weather columns even if empty."""
         import requests as req
