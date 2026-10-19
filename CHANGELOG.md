@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.11.16] - 2026-10-19
+
 ### Fixed
 - `apps/energy_forecast/weather.py`, `model.py` — when the Open-Meteo forecast request failed (timeout, 5xx), `fetch_open_meteo()` returned a columns-only frame with `object` dtype. The all-NaN `temp_c` then made `np.exp()` in the defrost-risk feature raise, failing the whole sensor update. The fallback now returns float64/datetime64 columns, `_engineer_features()` coerces weather columns with `pd.to_numeric(errors="coerce")` so the existing median/NaN imputation applies, and the failure is logged as a warning instead of degrading silently. (Ported from GitHub PR #25 by @housemaister.)
 
