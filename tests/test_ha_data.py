@@ -2678,3 +2678,31 @@ class TestEmptyResyncWarning:
                 ha_data.fetch_energy_history(mock_app, "sensor.energy", cache_path=cache_path)
 
         assert not any("resync" in r.getMessage() for r in caplog.records)
+
+
+class TestHourlyStateHistoryDstFallback:
+    """Away/presence builders create a tz-aware hourly grid then tz_localize(None);
+    across the October fall-back that yields two naive 02:00 rows, which breaks the
+    timestamp-indexed reindex in model.predict (is_away / people_home features)."""
+
+    def test_boolean_entity_history_unique_across_fallback(self, mock_app):
+        mock_app.get_history.return_value = {
+            "input_boolean.abwesend": [
+                {"state": "on", "last_changed": "2026-10-24T20:00:00+00:00"},
+                {"state": "off", "last_changed": "2026-10-25T03:00:00+00:00"},
+            ]
+        }
+        result = ha_data.fetch_boolean_entity_history(mock_app, "input_boolean.abwesend", days=30)
+        assert result["timestamp"].is_unique
+        assert (result["timestamp"] == pd.Timestamp("2026-10-25 02:00")).sum() == 1
+
+    def test_presence_history_unique_across_fallback(self, mock_app):
+        mock_app.get_history.return_value = {
+            "person.alice": [
+                {"state": "home", "last_changed": "2026-10-24T20:00:00+00:00"},
+                {"state": "not_home", "last_changed": "2026-10-25T03:00:00+00:00"},
+            ]
+        }
+        result = ha_data.fetch_presence_history(mock_app, ["person.alice"], days=30)
+        assert result["timestamp"].is_unique
+        assert (result["timestamp"] == pd.Timestamp("2026-10-25 02:00")).sum() == 1
