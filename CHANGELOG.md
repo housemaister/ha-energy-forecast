@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `apps/energy_forecast/const.py`, `energy_forecast.py`, `ha_data.py` — DST fall-back (last Sunday of October): converting timestamps to naive local time maps both 02:00 hours onto one `02:00` label, and later timestamp-indexed lookups failed with `cannot reindex on an axis with duplicate labels`. With SRG-SSR weather (UTC timestamps) the duplicate already appears once the forecast horizon reaches the fall-back night, about 2.5 days early, and the heating-active projection fails with a warning. From that night on, appliances with a `program_sensor` dropped out of the hourly update and of every retrain for up to 30 days. New `const.drop_dst_duplicates` keeps the first (summer-time) row; it is applied to the forecast frame after the timezone strip, to the away-mode and presence hourly histories, and to the fresh frame in both sub-sensor fetchers. Trade-off: the fall-back day has 24 hourly rows for 25 real hours, so its forecast and training total under-count about one hour.
+- `apps/energy_forecast/energy_forecast.py` — "Sensor update failed" now logs the full traceback, so the failing line is visible in the AppDaemon log.
+
 ---
 
 ## [0.11.16] - 2026-10-19
