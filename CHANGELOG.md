@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.11.18] - 2026-10-26
+
 ### Fixed
 - `apps/energy_forecast/ha_data.py` — on the DST fall-back night, the four energy-cache writers (`fetch_energy_history`, `fetch_recent_energy`, `fetch_energy_history_15m`, `fetch_recent_energy_15m`) raised `AmbiguousTimeError` when computing the open-bucket cutoff, losing lag features and skipping the 15 m cache write for the ambiguous hour. `fetch_climate_history` and `fetch_recent_climate` had the same class of bug via `.dt.floor("1h")` on tz-aware HA history timestamps, crashing for any fetch window that contained the fall-back hour (2 days on the hourly run, 30 days on the weekly retrain) and leaving the climate cache stale. Energy writers now strip the timezone before flooring so the operation is unambiguous; climate writers drop the redundant floor — the following `resample("1h")` is DST-safe and already performs the bucketing.
 - `tests/test_ha_data.py` — test helpers with the same tz-aware floor pattern are updated so the suite no longer fails when run during the ~3 h window around a DST fall-back.
