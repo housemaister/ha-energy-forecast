@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `apps/energy_forecast/ha_data.py` — on the DST fall-back night, the four energy-cache writers (`fetch_energy_history`, `fetch_recent_energy`, `fetch_energy_history_15m`, `fetch_recent_energy_15m`) raised `AmbiguousTimeError` when computing the open-bucket cutoff, losing lag features and skipping the 15 m cache write for the ambiguous hour. `fetch_climate_history` and `fetch_recent_climate` had the same class of bug via `.dt.floor("1h")` on tz-aware HA history timestamps, crashing for any fetch window that contained the fall-back hour (2 days on the hourly run, 30 days on the weekly retrain) and leaving the climate cache stale. Energy writers now strip the timezone before flooring so the operation is unambiguous; climate writers drop the redundant floor — the following `resample("1h")` is DST-safe and already performs the bucketing.
+- `tests/test_ha_data.py` — test helpers with the same tz-aware floor pattern are updated so the suite no longer fails when run during the ~3 h window around a DST fall-back.
+
 ---
 
 ## [0.11.17] - 2026-10-22
@@ -59,7 +63,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   kWh comparison between the two meter sources; with `--apply` it overwrites the post-cutover rows
   in-place and prints a summary. Credentials via `EM_HA_TOKEN` env var; cutover boundary configurable
   at the top of the file (`CUTOVER_DATE = "2026-07-25"`). Not run automatically by `deploy.py`.
->>>>>>> 77e30c0 (docs: add CHANGELOG entry for standalone Docker deployment docs)
 
 ### Fixed
 - `apps/energy_forecast/model.py` — `_prepare_prediction_X()` was calling `_engineer_features()` without `country=self._country`, so predictions silently used CH holidays regardless of the user's configured country/canton. Training (`train()`) already passed `country` correctly, making training and prediction inconsistent. Fixed by adding the missing `country=` argument. Regression test added to `TestHolidayCountry`. (Ported from GitHub PR #22 by @GreenNothing.)
